@@ -1,10 +1,13 @@
 'use strict';
 
 const assertDeepStrictEqual = require('assert').deepStrictEqual;
-const tests = require('../spec/tests');
 const Benchmark = require('benchmark');
-const suite = new Benchmark.Suite;
 
+const { Table, writeReadme } = require('./utils');
+const tests = require('../spec/tests');
+
+const benchResultTable = new Table(['Name', 'ops/sec', '±', 'runs sampled']);
+const suite = new Benchmark.Suite;
 
 const equalPackages = {
   'fast-deep-equal': require('..'),
@@ -53,8 +56,25 @@ for (const equalName in equalPackages) {
 console.log();
 
 suite
-  .on('cycle', (event) => console.log(String(event.target)))
+  .on('cycle', (event) => {
+    const perfResult = String(event.target);
+    console.log(perfResult);
+
+    // eslint-disable-next-line no-unused-vars
+    const [_, name, opssec, offset, runs] = perfResult.match(
+      /(.*)\sx\s(.*)\sops\/sec\s(.*)\s\((.*)\sruns/
+    );
+    const mdRow = [name, opssec, offset, runs];
+    benchResultTable.addResult(mdRow);
+  })
   .on('complete', function () {
-    console.log('The fastest is ' + this.filter('fastest').map('name'));
+    const fastestItem = 'The fastest is ' + this.filter('fastest').map('name');
+    console.log();
+    console.log(fastestItem);
+
+    let newContent = `Node.js: ${process.version}:\n\n`;
+    newContent += `${benchResultTable.toMarkdown()}\n\n`;
+    newContent += `${fastestItem}\n`;
+    writeReadme(newContent);
   })
   .run({async: true});
